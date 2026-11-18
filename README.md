@@ -128,6 +128,7 @@ L'agent est construit avec **LangGraph** et dispose de deux outils :
 ```
 olist-data-agent/
 ├── data/                 # CSV Olist (non versionnés)
+├── snowflake/            # setup.sql : warehouse, base, schémas, rôle, utilisateur
 ├── ingestion/            # Script Python de chargement vers RAW
 ├── dbt/                  # Projet dbt
 │   ├── models/
@@ -147,7 +148,14 @@ olist-data-agent/
 > Les instructions détaillées seront complétées au fil du projet.
 
 1. Télécharger le jeu de données sur [Kaggle](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) et placer les CSV dans `data/`.
-2. Créer un compte d'essai Snowflake et renseigner les identifiants dans un fichier `.env` (non versionné).
+2. Créer un compte d'essai Snowflake et générer une paire de clés :
+   ```bash
+   mkdir -p ~/.snowflake && cd ~/.snowflake
+   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out rsa_key.p8 -nocrypt
+   openssl rsa -in rsa_key.p8 -pubout -out rsa_key.pub
+   ```
+   Exécuter ensuite [`snowflake/setup.sql`](snowflake/setup.sql) dans Snowsight avec **Run All**, après y avoir collé la clé publique.
+   Enfin, copier `.env.example` en `.env` et renseigner l'identifiant du compte.
 3. Installer les dépendances :
    ```bash
    pip install dbt-snowflake snowflake-connector-python langgraph
