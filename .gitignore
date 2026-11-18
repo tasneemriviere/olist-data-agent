@@ -1,0 +1,20 @@
+# Données brutes Olist (téléchargées depuis Kaggle)
+data/
+
+# Secrets et identifiants
+.env
+*.p8
+*.pem
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# dbt
+target/
+dbt_packages/
+logs/
+
+# macOS
+.DS_Store
