@@ -81,6 +81,20 @@ flowchart LR
 
 ---
 
+## Qualité des données
+
+Les 9 tables brutes ont été profilées avant d'écrire le staging (unicité des clés, conversion des types,
+valeurs possibles, cohérence entre tables). Principaux constats :
+
+- **`customer_id` change à chaque commande** : la dimension client repose sur `customer_unique_id` (96 096 personnes pour 99 441 commandes).
+- **`review_id` n'est pas unique** : un avis peut couvrir plusieurs commandes. La clé est le couple `(review_id, order_id)`.
+- **La géolocalisation compte 1 million de points pour 19 000 codes postaux**, dont 42 hors du Brésil : agrégation par code postal après filtrage.
+- **Quelques anomalies isolées** (8 commandes livrées sans date de livraison, 1 commande sans paiement, 2 traductions de catégorie manquantes) traitées explicitement dans les modèles.
+
+👉 Détail des requêtes, des résultats et des décisions : [docs/data_profiling.md](docs/data_profiling.md)
+
+---
+
 ## L'agent IA
 
 L'agent est construit avec **LangGraph** et dispose de deux outils :
@@ -138,6 +152,7 @@ olist-data-agent/
 ├── airflow/              # docker-compose + DAG
 │   └── dags/
 ├── agent/                # Agent LangGraph et garde-fous
+├── docs/                 # Analyses complémentaires (profilage des données brutes)
 └── README.md
 ```
 
