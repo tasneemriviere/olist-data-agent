@@ -1,0 +1,175 @@
+version: 2
+
+models:
+  - name: stg_olist__orders
+    description: Commandes nettoyées et typées. Une ligne par commande.
+    columns:
+      - name: order_id
+        description: Identifiant de la commande.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Identifiant client propre à cette commande (voir stg_olist__customers).
+        data_tests: [not_null]
+      - name: order_status
+        description: Statut de la commande (delivered, shipped, canceled…).
+      - name: ordered_at
+        description: Date et heure d'achat.
+      - name: approved_at
+        description: Date et heure de validation du paiement.
+      - name: delivered_to_carrier_at
+        description: Date et heure de remise au transporteur.
+      - name: delivered_to_customer_at
+        description: Date et heure de livraison au client. Nulle si la commande n'est pas livrée.
+      - name: estimated_delivery_date
+        description: Date de livraison promise au client lors de l'achat.
+
+  - name: stg_olist__order_items
+    description: Articles des commandes. Une ligne par article.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_id, order_item_number]
+    columns:
+      - name: order_id
+        description: Commande à laquelle appartient l'article.
+        data_tests: [not_null]
+      - name: order_item_number
+        description: Numéro de l'article dans la commande (1, 2, 3…).
+      - name: product_id
+        description: Produit vendu.
+      - name: seller_id
+        description: Vendeur de l'article.
+      - name: shipping_limit_at
+        description: Date limite de remise au transporteur pour le vendeur.
+      - name: item_price
+        description: Prix de l'article, en réaux brésiliens (BRL).
+      - name: freight_value
+        description: Frais de port de l'article, en BRL.
+
+  - name: stg_olist__order_payments
+    description: Paiements des commandes. Une commande peut être réglée en plusieurs paiements.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_id, payment_sequential]
+    columns:
+      - name: order_id
+        description: Commande réglée.
+        data_tests: [not_null]
+      - name: payment_sequential
+        description: Rang du paiement dans la commande.
+      - name: payment_type
+        description: Moyen de paiement (credit_card, boleto, voucher, debit_card, not_defined).
+      - name: installments_count
+        description: Nombre d'échéances choisi par le client.
+      - name: payment_amount
+        description: Montant du paiement, en BRL.
+
+  - name: stg_olist__order_reviews
+    description: >
+      Avis clients. review_id n'est pas unique (un avis peut couvrir plusieurs
+      commandes) : la clé est le couple (review_id, order_id).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [review_id, order_id]
+    columns:
+      - name: review_id
+        description: Identifiant de l'avis.
+        data_tests: [not_null]
+      - name: order_id
+        description: Commande évaluée.
+        data_tests: [not_null]
+      - name: review_score
+        description: Note de 1 à 5.
+      - name: review_comment_title
+        description: Titre du commentaire, en portugais.
+      - name: review_comment_message
+        description: Texte du commentaire, en portugais.
+      - name: review_created_at
+        description: Date d'envoi du questionnaire de satisfaction.
+      - name: review_answered_at
+        description: Date de réponse du client.
+
+  - name: stg_olist__customers
+    description: >
+      Clients. Une ligne par customer_id, qui change à chaque commande.
+      customer_unique_id identifie la personne.
+    columns:
+      - name: customer_id
+        description: Identifiant client propre à une commande.
+        data_tests: [unique, not_null]
+      - name: customer_unique_id
+        description: Identifiant unique de la personne, stable entre ses commandes.
+        data_tests: [not_null]
+      - name: customer_zip_code_prefix
+        description: 5 premiers chiffres du code postal, en texte.
+      - name: customer_city
+        description: Ville, en minuscules.
+      - name: customer_state
+        description: État brésilien, code à 2 lettres (SP, RJ…).
+
+  - name: stg_olist__sellers
+    description: Vendeurs. Une ligne par vendeur.
+    columns:
+      - name: seller_id
+        description: Identifiant du vendeur.
+        data_tests: [unique, not_null]
+      - name: seller_zip_code_prefix
+        description: 5 premiers chiffres du code postal, en texte.
+      - name: seller_city
+        description: Ville, en minuscules.
+      - name: seller_state
+        description: État brésilien, code à 2 lettres.
+
+  - name: stg_olist__products
+    description: Produits. Une ligne par produit. Les colonnes "lenght" de la source sont renommées en "length".
+    columns:
+      - name: product_id
+        description: Identifiant du produit.
+        data_tests: [unique, not_null]
+      - name: product_category_name
+        description: Catégorie en portugais. Nulle pour 610 produits.
+      - name: product_name_length
+        description: Nombre de caractères du nom du produit.
+      - name: product_description_length
+        description: Nombre de caractères de la description.
+      - name: product_photos_count
+        description: Nombre de photos publiées.
+      - name: product_weight_g
+        description: Poids en grammes.
+      - name: product_length_cm
+        description: Longueur en centimètres.
+      - name: product_height_cm
+        description: Hauteur en centimètres.
+      - name: product_width_cm
+        description: Largeur en centimètres.
+
+  - name: stg_olist__product_category_translations
+    description: Traduction des catégories en anglais, complétée des 2 catégories absentes de la source.
+    columns:
+      - name: product_category_name
+        description: Catégorie en portugais.
+        data_tests: [unique, not_null]
+      - name: product_category_name_english
+        description: Catégorie en anglais.
+        data_tests: [not_null]
+
+  - name: stg_olist__geolocation
+    description: >
+      Une ligne par code postal. Coordonnées moyennes calculées sur les points
+      situés au Brésil ; ville et État les plus fréquents.
+    columns:
+      - name: zip_code_prefix
+        description: 5 premiers chiffres du code postal.
+        data_tests: [unique, not_null]
+      - name: latitude
+        description: Latitude moyenne.
+      - name: longitude
+        description: Longitude moyenne.
+      - name: city
+        description: Ville la plus fréquente pour ce code postal.
+      - name: state
+        description: État le plus fréquent pour ce code postal.
+      - name: source_points_count
+        description: Nombre de points GPS de la source utilisés pour le calcul.

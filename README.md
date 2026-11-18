@@ -169,9 +169,9 @@ olist-data-agent/
 
 ## Feuille de route
 
-- [ ] Mise en place : compte Snowflake, dbt Core, dépôt GitHub
-- [ ] Ingestion des CSV dans le schéma `RAW`
-- [ ] Modèles dbt de staging
+- [x] Mise en place : compte Snowflake, dbt Core, dépôt GitHub
+- [x] Ingestion des CSV dans le schéma `RAW`
+- [x] Modèles dbt de staging
 - [ ] Marts `fct_orders`, `fct_payments`, `dim_customers`
 - [ ] Tests de qualité et documentation dbt
 - [ ] DAG Airflow (ingestion → dbt run → dbt test)

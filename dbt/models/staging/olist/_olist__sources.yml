@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: olist
+    description: >
+      CSV bruts du jeu Olist Brazilian E-Commerce, chargés tels quels par
+      ingestion/load_raw.py. Toutes les colonnes sont en VARCHAR.
+    database: "{{ env_var('SNOWFLAKE_DATABASE', 'OLIST') }}"
+    schema: RAW
+    tables:
+      - name: orders
+        description: Une ligne par commande, avec son statut et ses dates clés.
+      - name: order_items
+        description: Une ligne par article d'une commande.
+      - name: order_payments
+        description: Une ligne par paiement. Une commande peut avoir plusieurs paiements.
+      - name: order_reviews
+        description: Avis clients laissés après la livraison.
+      - name: customers
+        description: Une ligne par couple client / commande (customer_id change à chaque commande).
+      - name: sellers
+        description: Une ligne par vendeur.
+      - name: products
+        description: Une ligne par produit.
+      - name: product_category_name_translation
+        description: Traduction des catégories de produits du portugais vers l'anglais.
+      - name: geolocation
+        description: Coordonnées GPS par code postal (plusieurs lignes par code postal).
