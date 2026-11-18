@@ -1,0 +1,186 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: >
+      Table de faits des commandes. Une ligne par commande, avec ses montants,
+      ses paiements, ses délais et son retard de livraison, la note du client
+      et la localisation du client au moment de la commande.
+      Montants en réaux brésiliens (BRL).
+    columns:
+      - name: order_id
+        description: Identifiant de la commande.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Identifiant client propre à cette commande (technique, à ne pas utiliser pour compter des clients).
+        data_tests: [not_null]
+      - name: customer_unique_id
+        description: Identifiant du client réel. Clé vers dim_customers.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_unique_id
+      - name: customer_city
+        description: Ville de livraison de la commande.
+      - name: customer_state
+        description: État brésilien de livraison (code à 2 lettres).
+      - name: customer_region
+        description: Grande région du Brésil de livraison (Norte, Nordeste, Centro-Oeste, Sudeste, Sul).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Norte, Nordeste, Centro-Oeste, Sudeste, Sul]
+      - name: order_status
+        description: Statut de la commande.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [delivered, shipped, canceled, unavailable, invoiced, processing, created, approved]
+      - name: ordered_at
+        description: Date et heure d'achat.
+        data_tests: [not_null]
+      - name: order_date
+        description: Date d'achat (sans l'heure).
+      - name: approved_at
+        description: Date et heure de validation du paiement.
+      - name: delivered_to_carrier_at
+        description: Date et heure de remise au transporteur.
+      - name: delivered_to_customer_at
+        description: Date et heure de livraison au client.
+      - name: estimated_delivery_date
+        description: Date de livraison promise au client lors de l'achat.
+      - name: items_count
+        description: Nombre d'articles de la commande (0 pour certaines commandes annulées ou indisponibles).
+      - name: distinct_products_count
+        description: Nombre de produits différents.
+      - name: sellers_count
+        description: Nombre de vendeurs différents.
+      - name: items_amount
+        description: Somme des prix des articles, hors frais de port.
+      - name: freight_amount
+        description: Somme des frais de port.
+      - name: order_amount
+        description: Montant total de la commande = articles + frais de port.
+      - name: payments_count
+        description: Nombre de paiements utilisés pour régler la commande.
+      - name: payments_amount
+        description: Montant total payé. Peut différer légèrement de order_amount (intérêts des paiements en plusieurs fois).
+      - name: max_installments_count
+        description: Plus grand nombre d'échéances parmi les paiements de la commande.
+      - name: review_score
+        description: Note de 1 à 5 laissée par le client (avis le plus récent). Nulle si aucun avis.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
+      - name: is_delivered
+        description: Vrai si la commande est livrée et que la date de livraison est connue.
+      - name: delivery_days
+        description: Délai entre l'achat et la livraison, en jours calendaires. Nul si non livrée.
+      - name: delivery_delay_days
+        description: >
+          Retard de livraison en jours par rapport à la date promise.
+          Positif = en retard, négatif = livrée en avance. Nul si non livrée.
+      - name: is_late
+        description: Vrai si la commande a été livrée après la date promise. Nul si non livrée.
+
+  - name: fct_payments
+    description: >
+      Table de faits des paiements. Une ligne par paiement : une commande peut
+      être réglée en plusieurs paiements (par exemple un bon d'achat et une carte).
+      Montants en BRL.
+    columns:
+      - name: payment_id
+        description: Identifiant du paiement = order_id + rang du paiement.
+        data_tests: [unique, not_null]
+      - name: order_id
+        description: Commande réglée. Clé vers fct_orders.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: payment_sequential
+        description: Rang du paiement dans la commande.
+      - name: payment_type
+        description: Moyen de paiement. boleto = bordereau bancaire brésilien, payé en une fois.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [credit_card, boleto, voucher, debit_card, not_defined]
+      - name: installments_count
+        description: Nombre d'échéances. Seule la carte de crédit permet plus d'une échéance (jusqu'à 24).
+      - name: payment_amount
+        description: Montant du paiement.
+      - name: is_installment
+        description: Vrai si le paiement est fait en plusieurs fois (plus d'une échéance).
+        data_tests: [not_null]
+      - name: customer_unique_id
+        description: Client réel ayant payé. Clé vers dim_customers.
+      - name: customer_state
+        description: État brésilien du client.
+      - name: customer_region
+        description: Grande région du Brésil du client.
+      - name: order_status
+        description: Statut de la commande associée.
+      - name: ordered_at
+        description: Date et heure d'achat de la commande associée.
+      - name: order_date
+        description: Date d'achat de la commande associée.
+
+  - name: dim_customers
+    description: >
+      Dimension client. Une ligne par client réel (customer_unique_id), avec sa
+      localisation (celle de sa commande la plus récente) et des indicateurs
+      sur l'ensemble de ses commandes.
+    columns:
+      - name: customer_unique_id
+        description: Identifiant du client réel.
+        data_tests: [unique, not_null]
+      - name: customer_zip_code_prefix
+        description: 5 premiers chiffres du code postal.
+      - name: customer_city
+        description: Ville.
+      - name: customer_state
+        description: État brésilien (code à 2 lettres).
+      - name: customer_state_name
+        description: Nom de l'État.
+      - name: customer_region
+        description: Grande région du Brésil.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Norte, Nordeste, Centro-Oeste, Sudeste, Sul]
+      - name: latitude
+        description: Latitude moyenne du code postal. Nulle si le code postal est absent de la géolocalisation.
+      - name: longitude
+        description: Longitude moyenne du code postal. Nulle si le code postal est absent de la géolocalisation.
+      - name: first_order_at
+        description: Date de la première commande.
+      - name: last_order_at
+        description: Date de la dernière commande.
+      - name: orders_count
+        description: Nombre total de commandes.
+        data_tests: [not_null]
+      - name: delivered_orders_count
+        description: Nombre de commandes livrées.
+      - name: canceled_orders_count
+        description: Nombre de commandes annulées.
+      - name: late_orders_count
+        description: Nombre de commandes livrées en retard.
+      - name: total_order_amount
+        description: Montant cumulé des commandes (articles + frais de port), en BRL.
+      - name: total_payments_amount
+        description: Montant cumulé payé, en BRL.
+      - name: avg_review_score
+        description: Note moyenne donnée par le client (1 à 5).
+      - name: is_repeat_customer
+        description: Vrai si le client a passé plus d'une commande.

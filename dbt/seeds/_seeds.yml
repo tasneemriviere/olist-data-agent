@@ -1,0 +1,26 @@
+version: 2
+
+seeds:
+  - name: brazil_states
+    description: >
+      Référentiel des 27 unités fédérales du Brésil (26 États + le District fédéral)
+      et de leur grande région officielle (IBGE). Absent du jeu Olist, il permet
+      d'analyser les données par région.
+    config:
+      column_types:
+        state_code: varchar(2)
+        state_name: varchar
+        region: varchar
+    columns:
+      - name: state_code
+        description: Code de l'État à 2 lettres (SP, RJ…).
+        data_tests: [unique, not_null]
+      - name: state_name
+        description: Nom de l'État.
+      - name: region
+        description: Grande région du Brésil.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Norte, Nordeste, Centro-Oeste, Sudeste, Sul]
