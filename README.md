@@ -70,14 +70,25 @@ flowchart LR
 |---|---|---|
 | `fct_orders` | 1 ligne par commande | montant total, nombre d'articles, délai de livraison, retard en jours, note moyenne |
 | `fct_payments` | 1 ligne par paiement | type de paiement, nombre d'échéances, montant, paiement en plusieurs fois (oui/non) |
-| `dim_customers` | 1 ligne par client unique | ville, État, région, première et dernière commande, nombre de commandes |
+| `dim_customers` | 1 ligne par client réel (`customer_unique_id`) | ville, État, région, première et dernière commande, nombre de commandes |
+
+Un seed dbt (`brazil_states`) associe les 27 États brésiliens à leurs 5 grandes régions, absentes du jeu Olist.
 
 ### Tests de qualité
 
-- `unique` et `not_null` sur toutes les clés primaires
-- `relationships` entre faits et dimensions (par exemple `fct_orders.customer_id` → `dim_customers`)
-- `accepted_values` sur les colonnes catégorielles (`order_status`, `payment_type`)
-- Documentation générée avec `dbt docs generate`
+`dbt build` : **62 / 62 au vert** (12 modèles, 1 seed, 49 tests).
+
+- `unique` et `not_null` sur toutes les clés primaires, clés composites testées avec `dbt_utils`
+- `relationships` entre faits et dimensions (`fct_orders.customer_unique_id` → `dim_customers`, `fct_payments.order_id` → `fct_orders`)
+- `accepted_values` sur les colonnes catégorielles (`order_status`, `payment_type`, `customer_region`, `review_score`)
+
+### Premiers résultats
+
+- **Le Nordeste a le plus de retards** : 12,7 % des commandes livrées après la date promise, contre 6,1 % dans le Sudeste.
+- **49,4 % des paiements se font en plusieurs fois**, soit 63,1 % du montant payé.
+- **Un retard fait chuter la note client** : 2,27 / 5 en moyenne, contre 4,29 pour une livraison à l'heure.
+
+👉 Règles de calcul, contrôles de cohérence et requêtes : [docs/data_model.md](docs/data_model.md)
 
 ---
 
@@ -152,7 +163,7 @@ olist-data-agent/
 ├── airflow/              # docker-compose + DAG
 │   └── dags/
 ├── agent/                # Agent LangGraph et garde-fous
-├── docs/                 # Analyses complémentaires (profilage des données brutes)
+├── docs/                 # Profilage des données brutes, modèle de données des marts
 └── README.md
 ```
 
@@ -171,12 +182,20 @@ olist-data-agent/
    ```
    Exécuter ensuite [`snowflake/setup.sql`](snowflake/setup.sql) dans Snowsight avec **Run All**, après y avoir collé la clé publique.
    Enfin, copier `.env.example` en `.env` et renseigner l'identifiant du compte.
-3. Installer les dépendances :
+3. Installer les dépendances (Python 3.11 ou plus) :
    ```bash
-   pip install dbt-snowflake snowflake-connector-python langgraph
+   python3.11 -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
    ```
+   > Si le projet est dans un dossier synchronisé (OneDrive, iCloud, Dropbox), créer l'environnement virtuel **en dehors** de ce dossier, par exemple dans `~/.venvs/olist-data-agent`. La synchronisation des milliers de fichiers du venv peut bloquer Python.
 4. Charger les données : `python ingestion/load_raw.py`
-5. Construire et tester les modèles : `dbt run && dbt test`
+5. Construire et tester les modèles :
+   ```bash
+   cd dbt
+   set -a && source ../.env && set +a
+   dbt deps --profiles-dir .
+   dbt build --profiles-dir .
+   ```
 6. Lancer Airflow : `docker compose up` dans `airflow/`
 7. Poser une question à l'agent : `python agent/main.py "Quel est le retard moyen de livraison par région ?"`
 
