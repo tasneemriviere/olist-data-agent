@@ -74,13 +74,28 @@ flowchart LR
 
 Un seed dbt (`brazil_states`) associe les 27 États brésiliens à leurs 5 grandes régions, absentes du jeu Olist.
 
+### Lignage dbt
+
+![Graphe de lignage dbt](docs/images/dbt_lineage.png)
+
 ### Tests de qualité
 
-`dbt build` : **62 / 62 au vert** (12 modèles, 1 seed, 49 tests).
+`dbt build` : **75 tests au vert, 1 avertissement attendu** (12 modèles, 1 seed, 63 tests).
 
-- `unique` et `not_null` sur toutes les clés primaires, clés composites testées avec `dbt_utils`
-- `relationships` entre faits et dimensions (`fct_orders.customer_unique_id` → `dim_customers`, `fct_payments.order_id` → `fct_orders`)
-- `accepted_values` sur les colonnes catégorielles (`order_status`, `payment_type`, `customer_region`, `review_score`)
+| Type | Exemples |
+|---|---|
+| Clés | `unique` et `not_null` sur toutes les clés, clés composites avec `dbt_utils.unique_combination_of_columns` |
+| Sources | Unicité de `order_id` et `customer_id` dès le schéma `RAW`, avant toute transformation |
+| Intégrité | `relationships` : `fct_orders` → `dim_customers`, `fct_payments` → `fct_orders` |
+| Valeurs | `accepted_values` sur `order_status`, `payment_type`, `customer_region`, `review_score` ; `accepted_range` sur les échéances (0 à 24) |
+| Règles métier | Montants et délais jamais négatifs, livraison postérieure à l'achat, paiement en plusieurs fois uniquement par carte de crédit |
+| Réconciliation | Aucune commande perdue entre `RAW` et `fct_orders` ; total payé identique en staging, dans `fct_payments` et dans `fct_orders` |
+| Avertissement | Les 8 commandes « delivered » sans date de livraison sont signalées (`severity: warn`) sans bloquer le pipeline |
+
+### Documentation
+
+- Chaque modèle et chaque colonne est décrit dans des fichiers `.yml`. Le site de documentation se génère avec `dbt docs generate` et s'ouvre avec `dbt docs serve`.
+- Les descriptions sont aussi **copiées en commentaires dans Snowflake** (`persist_docs`) : l'agent IA peut les lire directement dans `INFORMATION_SCHEMA`.
 
 ### Premiers résultats
 
@@ -195,6 +210,7 @@ olist-data-agent/
    set -a && source ../.env && set +a
    dbt deps --profiles-dir .
    dbt build --profiles-dir .
+   dbt docs generate --profiles-dir . && dbt docs serve --profiles-dir .
    ```
 6. Lancer Airflow : `docker compose up` dans `airflow/`
 7. Poser une question à l'agent : `python agent/main.py "Quel est le retard moyen de livraison par région ?"`
@@ -207,7 +223,7 @@ olist-data-agent/
 - [x] Ingestion des CSV dans le schéma `RAW`
 - [x] Modèles dbt de staging
 - [x] Marts `fct_orders`, `fct_payments`, `dim_customers`
-- [ ] Tests de qualité et documentation dbt
+- [x] Tests de qualité et documentation dbt
 - [ ] DAG Airflow (ingestion → dbt run → dbt test)
 - [ ] Agent LangGraph avec garde-fous
 - [ ] Exemples de questions et réponses dans ce README

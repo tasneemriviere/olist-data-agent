@@ -8,8 +8,14 @@ sources:
     database: "{{ env_var('SNOWFLAKE_DATABASE', 'OLIST') }}"
     schema: RAW
     tables:
+      # Tests sur les sources : détectent un problème dans les CSV avant toute transformation
       - name: orders
         description: Une ligne par commande, avec son statut et ses dates clés.
+        columns:
+          - name: order_id
+            data_tests: [unique, not_null]
+          - name: customer_id
+            data_tests: [not_null]
       - name: order_items
         description: Une ligne par article d'une commande.
       - name: order_payments
@@ -18,6 +24,9 @@ sources:
         description: Avis clients laissés après la livraison.
       - name: customers
         description: Une ligne par couple client / commande (customer_id change à chaque commande).
+        columns:
+          - name: customer_id
+            data_tests: [unique, not_null]
       - name: sellers
         description: Une ligne par vendeur.
       - name: products

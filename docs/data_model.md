@@ -167,10 +167,15 @@ sans article (775 commandes, presque toutes indisponibles ou annulées), sans pa
 
 ### Tests dbt
 
-`dbt build` : **62 / 62 au vert** (12 modèles, 1 seed, 49 tests).
+`dbt build` : **75 tests au vert, 1 avertissement attendu** (12 modèles, 1 seed, 63 tests).
 
 | Type de test | Exemples |
 |---|---|
+| Tests sur les sources | Unicité de `order_id` et `customer_id` directement dans `RAW` |
+| Règles métier (`dbt_utils.expression_is_true`) | Montants et délais ≥ 0 ; livraison après l'achat ; paiement en plusieurs fois uniquement par carte |
+| Plage de valeurs (`dbt_utils.accepted_range`) | `installments_count` entre 0 et 24 |
+| Réconciliation (tests SQL dans `dbt/tests/`) | Même nombre de commandes dans `RAW` et `fct_orders` ; même total payé en staging, dans `fct_payments` et dans `fct_orders` |
+| Avertissement (`severity: warn`) | Les 8 commandes « delivered » sans date de livraison : signalées sans bloquer le pipeline |
 | `unique` + `not_null` | `fct_orders.order_id`, `fct_payments.payment_id`, `dim_customers.customer_unique_id` |
 | `relationships` | `fct_orders.customer_unique_id` → `dim_customers` ; `fct_payments.order_id` → `fct_orders` |
 | `accepted_values` | `order_status` (8 valeurs), `payment_type` (5), `customer_region` (5), `review_score` (1 à 5) |

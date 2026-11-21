@@ -16,6 +16,11 @@ clean-targets:
 
 models:
   olist:
+    # Copie les descriptions dbt en commentaires Snowflake (tables et colonnes) :
+    # l'agent IA peut ainsi lire la documentation directement depuis INFORMATION_SCHEMA.
+    +persist_docs:
+      relation: true
+      columns: true
     staging:
       +schema: STAGING
       +materialized: view

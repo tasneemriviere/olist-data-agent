@@ -7,6 +7,29 @@ models:
       ses paiements, ses délais et son retard de livraison, la note du client
       et la localisation du client au moment de la commande.
       Montants en réaux brésiliens (BRL).
+    data_tests:
+      # Règles métier : montants et délais jamais négatifs
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "order_amount >= 0 and payments_amount >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "delivery_days >= 0"
+          config:
+            where: "is_delivered"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "delivered_to_customer_at >= ordered_at"
+          config:
+            where: "is_delivered"
+      # Anomalie connue de la source (8 commandes) : signalée sans bloquer le pipeline
+      - dbt_utils.expression_is_true:
+          name: warn_delivered_orders_without_delivery_date
+          arguments:
+            expression: "delivered_to_customer_at is not null"
+          config:
+            where: "order_status = 'delivered'"
+            severity: warn
     columns:
       - name: order_id
         description: Identifiant de la commande.
@@ -94,6 +117,16 @@ models:
       Table de faits des paiements. Une ligne par paiement : une commande peut
       être réglée en plusieurs paiements (par exemple un bon d'achat et une carte).
       Montants en BRL.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "payment_amount >= 0"
+      # Seule la carte de crédit autorise plus d'une échéance
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "payment_type = 'credit_card'"
+          config:
+            where: "is_installment"
     columns:
       - name: payment_id
         description: Identifiant du paiement = order_id + rang du paiement.
@@ -117,6 +150,11 @@ models:
                 values: [credit_card, boleto, voucher, debit_card, not_defined]
       - name: installments_count
         description: Nombre d'échéances. Seule la carte de crédit permet plus d'une échéance (jusqu'à 24).
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 24
       - name: payment_amount
         description: Montant du paiement.
       - name: is_installment
